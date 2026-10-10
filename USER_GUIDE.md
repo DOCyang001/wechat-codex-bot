@@ -36,7 +36,7 @@ cd wechat-codex-bot
 .\install.cmd
 ```
 
-私有仓库需要 GitHub 访问权限。若 `git clone` 提示无权限，先用自己的 GitHub 账号登录 Git，或让仓库所有者添加协作者。
+仓库公开，拉取代码无需 GitHub 登录或协作者权限。运行机器人仍需使用者自己的微信登录和 ChatGPT/Codex 登录。
 
 安装器会：
 
