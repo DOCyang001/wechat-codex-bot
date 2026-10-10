@@ -34,6 +34,9 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import os
 import ctypes
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from bot_environment import configure
+configure()
 os.environ["PROJECT_NAME"] = 'iwyxdxl/WeChatBot_WXAUTO_SE'
 # 消息收发由 wxbot 兼容层驱动（wechatauto，适配微信 4.x 自绘渲染）
 from wxbot import WeChat, is_wechat_asset_url
@@ -1401,6 +1404,15 @@ def keep_alive():
         try:
             # 获取当前所有正在监听的用户昵称集合
             current_listening_users = set(wx.listen.keys())
+            listener_thread=getattr(getattr(wx,'_listener',None),'_thread',None)
+            worker=next((t for t in threading.enumerate() if t.name=='InactiveUserChecker'),None)
+            health={'pid':os.getpid(),'updated_at':time.time(),
+                'listener_alive':bool(listener_thread and listener_thread.is_alive()),
+                'reply_worker_alive':bool(worker and worker.is_alive())}
+            health_path=Path(os.environ['LOCAL_REPLY_RULES']).parent/'bot_health.json'
+            temp_health=health_path.with_suffix('.tmp')
+            temp_health.write_text(json.dumps(health),'utf8')
+            os.replace(temp_health,health_path)
             
             # 获取应该被监听的用户昵称集合
             expected_users_to_listen = set(user_names)
@@ -2572,6 +2584,7 @@ def send_reply(user_id, sender_name, username, original_merged_message, reply, i
     if user_id not in json.loads(os.environ['LOCAL_ALLOWLIST_JSON']):
         raise ValueError("Chat is outside configured allowlist")
     if not reply or reply.strip() == "[[[不回复]]]":
+        logger.info('模型选择不回复或返回空内容，跳过发送')
         return
     # This installation supports text replies only, never model-driven UI actions.
     for marker in ('[tickle]', '[tickle_self]', '[recall]'):
@@ -4790,7 +4803,6 @@ def main():
                 logger.error(f"\033[31m添加监听用户{user_name}失败，请确保您在用户列表填写的微信昵称/备注与实际完全匹配，并且不要包含表情符号和特殊符号，注意填写的不是自己登录的微信昵称!\033[0m")
                 exit(1)
         logger.info("监听用户添加完成")
-
         # 挂上防撤回（镜像 + 媒体备份，纯读库、只写自己的镜像目录，不驱动界面）
         # 默认值写在这里而不是引用全局：老用户的 config.py 里没有这些新键，
         # 直接引用会在启动时 NameError。

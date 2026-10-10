@@ -41,7 +41,7 @@ class IntegrationTests(unittest.TestCase):
         tree=ast.parse((ROOT/'wechatbot-source/bot.py').read_text('utf8'))
         node=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='send_reply')
         module=ast.Module(body=[node],type_ignores=[])
-        scope={'os':__import__('os'), 'json':json, 'LISTEN_LIST':[['Example Contact','我的语气']], 'is_sending_message':False}
+        scope={'logger':unittest.mock.Mock(),'os':__import__('os'), 'json':json, 'LISTEN_LIST':[['Example Contact','我的语气']], 'is_sending_message':False}
         exec(compile(module,'send-only','exec'),scope)
         args=['Example Contact','peer','peer','incoming','[[[不回复]]]']
         with patch.dict(__import__('os').environ,{'LOCAL_ALLOWLIST_JSON':json.dumps(['Example Contact'])}):
@@ -94,6 +94,20 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(scope['GetListenChatType'](fixture,'group'),'group')
         self.assertIsNone(scope['GetListenChatType'](fixture,'missing'))
         fail.assert_not_called()
+
+    def test_child_replaces_inherited_cache_before_wechat_init(self):
+        import os,bot_environment
+        tree=ast.parse((ROOT/'wechatbot-source/bot.py').read_text('utf8'))
+        startup=next(n.lineno for n in tree.body if isinstance(n,ast.Expr)
+            and isinstance(n.value,ast.Call) and isinstance(n.value.func,ast.Name)
+            and n.value.func.id=='configure')
+        interface=min(n.lineno for n in ast.walk(tree) if isinstance(n,ast.Call)
+            and isinstance(n.func,ast.Name) and n.func.id=='WeChat')
+        self.assertLess(startup,interface)
+        with patch.dict(os.environ,{'LOCAL_WECHAT_CACHE':'inherited-parent-cache'}), \
+             patch('os.getpid',return_value=9911):
+            bot_environment.configure()
+            self.assertEqual(Path(os.environ['LOCAL_WECHAT_CACHE']).name,'process-9911')
 
 if __name__=='__main__':
     unittest.main()
