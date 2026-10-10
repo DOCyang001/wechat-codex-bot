@@ -12,6 +12,8 @@ CONFIG=load_settings()
 NAMES=CONFIG['listen_names']
 runtime = ROOT/'runtime'
 runtime.mkdir(exist_ok=True)
+# Any reconfiguration invalidates previous profile readiness, including failed regeneration.
+(runtime/'setup_report.json').unlink(missing_ok=True)
 secret_file = runtime/'bridge.json'
 if not secret_file.exists():
     secret_file.write_text(json.dumps({'key':secrets.token_urlsafe(32),'port':8766}), 'utf8')

@@ -15,13 +15,13 @@ class IntegrationTests(unittest.TestCase):
     def test_authenticated_text_completion(self):
         with patch('codex_bridge.complete',return_value='好的') as generate:
             result=self.client.post('/v1/chat/completions',headers=self.headers,
-                json={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'你好'}]})
+                json={'model':codex_bridge.MODEL,'messages':[{'role':'user','content':'你好'}]})
         self.assertEqual(result.status_code,200)
         self.assertEqual(result.json['choices'][0]['message']['content'],'好的')
         generate.assert_called_once()
 
     def test_disallows_unauthed_models_tools_and_images(self):
-        base={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'x'}]}
+        base={'model':codex_bridge.MODEL,'messages':[{'role':'user','content':'x'}]}
         self.assertEqual(self.client.post('/v1/chat/completions',json=base).status_code,401)
         for changes in ({'model':'other'}, {'tools':[{'type':'function'}]}, {'stream':True},
                         {'messages':[{'role':'user','content':[{'type':'image_url'}]}]}):
@@ -33,7 +33,7 @@ class IntegrationTests(unittest.TestCase):
     def test_model_failure_does_not_produce_fallback(self):
         with patch('codex_bridge.complete',side_effect=RuntimeError('offline')):
             result=self.client.post('/v1/chat/completions',headers=self.headers,
-                json={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'x'}]})
+                json={'model':codex_bridge.MODEL,'messages':[{'role':'user','content':'x'}]})
         self.assertEqual(result.status_code,502)
         self.assertNotIn('choices',result.json)
 
@@ -44,10 +44,11 @@ class IntegrationTests(unittest.TestCase):
         scope={'os':__import__('os'), 'json':json, 'LISTEN_LIST':[['Example Contact','我的语气']], 'is_sending_message':False}
         exec(compile(module,'send-only','exec'),scope)
         args=['Example Contact','peer','peer','incoming','[[[不回复]]]']
-        scope['send_reply'](*args)
-        args[0]='not allowed'
-        with self.assertRaises(ValueError):
+        with patch.dict(__import__('os').environ,{'LOCAL_ALLOWLIST_JSON':json.dumps(['Example Contact'])}):
             scope['send_reply'](*args)
+            args[0]='not allowed'
+            with self.assertRaises(ValueError):
+                scope['send_reply'](*args)
 
     def test_context_refreshes_even_with_style_profile(self):
         tree=ast.parse((ROOT/'wechatbot-source/bot.py').read_text('utf8'))
