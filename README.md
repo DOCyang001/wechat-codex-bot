@@ -4,6 +4,16 @@ Windows 本机微信机器人：读取指定聊天的上下文，用本人历史
 
 适合个人电脑轻量部署，无需服务器、域名、Docker 或 wxautox4 Plus 激活码。模型使用你的 Codex 账户额度。它是第三方微信自动化项目，并非微信或 OpenAI 官方机器人。
 
+## 原项目来源与致谢
+
+本项目在以下开源项目基础上增加 Codex 模型桥接、Windows 安装器和部署指南：
+
+- **机器人主体：[fanyuantaier/wechatbot-new](https://github.com/fanyuantaier/wechatbot-new)**，本仓库的 `wechatbot-source/` 修改自该项目。
+- **微信自动化驱动：[fanyuantaier/wechatauto-replica](https://github.com/fanyuantaier/wechatauto-replica)**，负责本地聊天读取、监听和微信界面操作。
+- **模型调用工具：[openai/codex](https://github.com/openai/codex)**，通过使用者自己的 ChatGPT 登录访问模型。
+
+感谢原作者及上游贡献者。本项目保留原版权声明和许可；具体源版本、修改范围及更早的项目传承见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。欢迎给原项目打星标支持。
+
 ## 快速部署
 
 准备 Windows 10/11、Python 3.11、Node.js、Git、已登录的电脑版微信，以及具有 Codex 使用权限的 ChatGPT 账号。
