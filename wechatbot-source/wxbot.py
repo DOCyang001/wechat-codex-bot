@@ -887,7 +887,8 @@ class WeChat(_BaseWeChat):
             except Exception:
                 import traceback
 
-                wxlog.debug("wxbot 监听回调错误:\n%s" % traceback.format_exc())
+                wxlog.error("wxbot 监听回调错误:\n%s" % traceback.format_exc())
+                raise
 
         return _wrapper
 
@@ -982,12 +983,8 @@ class WeChat(_BaseWeChat):
         if not entry:
             return None
         chat = entry[0] if isinstance(entry, tuple) else entry
-        try:
-            info = chat.ChatInfo()
-        except Exception as e:
-            log.warning("GetListenChatType(%s) 失败: %s", nickname, e)
-            return None
-        return info.get("chat_type")
+        username = str(getattr(chat, '_wxid', '') or '')
+        return ('group' if username.endswith('@chatroom') else 'friend') if username else None
 
     def GetAllSubWindow(self):
         """返回所有会话的 Chat 实例（用于 bot 判断群聊/私聊）。

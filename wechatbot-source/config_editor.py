@@ -298,7 +298,10 @@ def start_bot():
         creation_flags = (subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW) if os.name == 'nt' else 0
         bot_process = subprocess.Popen(
             cmd,
-            creationflags=creation_flags
+            creationflags=creation_flags,
+            stdin=subprocess.DEVNULL,
+            stdout=open(os.path.join(os.environ['LOCAL_WECHAT_CACHE'], '..', '..', 'bot.stdout.log'), 'a', encoding='utf8'),
+            stderr=subprocess.STDOUT
         )
     return {'status': 'started'}, 200
 

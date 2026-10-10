@@ -79,5 +79,21 @@ class IntegrationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     bot_environment.load_settings()
 
+    def test_registered_chat_type_never_opens_database_or_ui(self):
+        from types import SimpleNamespace
+        tree=ast.parse((ROOT/'wechatbot-source/wxbot.py').read_text('utf8'))
+        owner=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='WeChat')
+        node=next(n for n in owner.body if isinstance(n,ast.FunctionDef) and n.name=='GetListenChatType')
+        scope={}
+        exec(compile(ast.Module(body=[node],type_ignores=[]),'chat-type-only','exec'),scope)
+        fail=unittest.mock.Mock(side_effect=AssertionError('Must not query UI or DB'))
+        fixture=SimpleNamespace(listen={
+            'peer':(SimpleNamespace(_wxid='wxid_example',ChatInfo=fail),None),
+            'group':(SimpleNamespace(_wxid='123@chatroom',ChatInfo=fail),None)})
+        self.assertEqual(scope['GetListenChatType'](fixture,'peer'),'friend')
+        self.assertEqual(scope['GetListenChatType'](fixture,'group'),'group')
+        self.assertIsNone(scope['GetListenChatType'](fixture,'missing'))
+        fail.assert_not_called()
+
 if __name__=='__main__':
     unittest.main()

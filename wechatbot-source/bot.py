@@ -448,6 +448,9 @@ logger.addHandler(async_http_handler)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
+file_handler = logging.FileHandler(Path(os.environ['LOCAL_REPLY_RULES']).parent / 'bot.log', encoding='utf8')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 # 获取微信窗口对象
 try:

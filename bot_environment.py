@@ -27,7 +27,7 @@ def configure():
     os.environ['PYTHONIOENCODING']='utf-8'
     os.environ['LOCAL_WECHAT_DB_DIR']=config['wechat_db_dir']
     os.environ['LOCAL_WECHAT_ACCOUNT']=config['wechat_account']
-    os.environ['LOCAL_WECHAT_CACHE']=str(ROOT/'runtime/wechatdb/decrypted')
+    os.environ['LOCAL_WECHAT_CACHE']=str(ROOT/'runtime/wechatdb'/f'process-{os.getpid()}')
     os.environ['WECHATAUTO_KEYS_DIR']=str(ROOT/'runtime/wechatdb/keys')
     os.environ['WECHATAUTO_RHYTHM']='natural'
     os.environ['LOCAL_REPLY_RULES']=str(ROOT/'runtime/reply_rules.txt')
