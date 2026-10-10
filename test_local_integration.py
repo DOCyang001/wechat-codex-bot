@@ -1,0 +1,82 @@
+import ast
+import json
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+import codex_bridge
+from bot_environment import ROOT, configure
+configure()
+
+class IntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.client=codex_bridge.app.test_client()
+        self.headers={'Authorization':'Bearer '+codex_bridge.settings()['key']}
+
+    def test_authenticated_text_completion(self):
+        with patch('codex_bridge.complete',return_value='好的') as generate:
+            result=self.client.post('/v1/chat/completions',headers=self.headers,
+                json={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'你好'}]})
+        self.assertEqual(result.status_code,200)
+        self.assertEqual(result.json['choices'][0]['message']['content'],'好的')
+        generate.assert_called_once()
+
+    def test_disallows_unauthed_models_tools_and_images(self):
+        base={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'x'}]}
+        self.assertEqual(self.client.post('/v1/chat/completions',json=base).status_code,401)
+        for changes in ({'model':'other'}, {'tools':[{'type':'function'}]}, {'stream':True},
+                        {'messages':[{'role':'user','content':[{'type':'image_url'}]}]}):
+            with patch('codex_bridge.complete') as generate:
+                result=self.client.post('/v1/chat/completions',headers=self.headers,json=base|changes)
+                self.assertEqual(result.status_code,400)
+                generate.assert_not_called()
+
+    def test_model_failure_does_not_produce_fallback(self):
+        with patch('codex_bridge.complete',side_effect=RuntimeError('offline')):
+            result=self.client.post('/v1/chat/completions',headers=self.headers,
+                json={'model':'gpt-6.1-sol','messages':[{'role':'user','content':'x'}]})
+        self.assertEqual(result.status_code,502)
+        self.assertNotIn('choices',result.json)
+
+    def test_bot_suppresses_silence_and_other_contacts(self):
+        tree=ast.parse((ROOT/'wechatbot-source/bot.py').read_text('utf8'))
+        node=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='send_reply')
+        module=ast.Module(body=[node],type_ignores=[])
+        scope={'os':__import__('os'), 'json':json, 'LISTEN_LIST':[['Example Contact','我的语气']], 'is_sending_message':False}
+        exec(compile(module,'send-only','exec'),scope)
+        args=['Example Contact','peer','peer','incoming','[[[不回复]]]']
+        scope['send_reply'](*args)
+        args[0]='not allowed'
+        with self.assertRaises(ValueError):
+            scope['send_reply'](*args)
+
+    def test_context_refreshes_even_with_style_profile(self):
+        tree=ast.parse((ROOT/'wechatbot-source/bot.py').read_text('utf8'))
+        node=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='inject_history_context')
+        import threading
+        read=unittest.mock.Mock(return_value='最新聊天')
+        scope={'get_dynamic_config':lambda *args:True,'history_context_lock':threading.Lock(),
+            'history_context_injected':set(),'history_context_block':read,'logger':unittest.mock.Mock()}
+        exec(compile(ast.Module(body=[node],type_ignores=[]),'context-only','exec'),scope)
+        for _ in range(2):
+            messages=[{'role':'system','content':'语气档案'}]
+            scope['inject_history_context'](messages,'person','你好')
+            self.assertIn('最新聊天',messages[0]['content'])
+        self.assertEqual(read.call_count,2)
+        self.assertTrue(all(c.kwargs['force'] for c in read.call_args_list))
+
+    def test_health_identifies_this_deployment(self):
+        self.assertEqual(self.client.get('/health').json['instance'],str(ROOT))
+
+    def test_settings_reject_account_traversal_and_duplicate_targets(self):
+        import bot_environment
+        valid={'wechat_db_dir':'C:/example','wechat_account':'wxid_example',
+            'listen_names':['Example Contact'],'model':'gpt-6.1-sol'}
+        for changes in ({'wechat_account':'../other'}, {'wechat_account':'C:\\other'},
+                        {'listen_names':['x','x']}, {'listen_names':[]}):
+            with patch.object(Path,'exists',return_value=True), \
+                 patch.object(Path,'read_text',return_value=json.dumps(valid|changes)):
+                with self.assertRaises(ValueError):
+                    bot_environment.load_settings()
+
+if __name__=='__main__':
+    unittest.main()

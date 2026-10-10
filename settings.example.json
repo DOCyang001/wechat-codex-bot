@@ -1,0 +1,7 @@
+{
+  "wechat_db_dir": "C:\\Users\\YourName\\Documents\\xwechat_files",
+  "wechat_account": "wxid_your_account_folder",
+  "listen_names": ["Example Contact", "Example Group"],
+  "model": "gpt-6.1-sol",
+  "codex_cli_js": ""
+}

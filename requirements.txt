@@ -1,0 +1,10 @@
+# Pin the WeChat driver source used for the verified local installation.
+wechatauto-replica[guia] @ git+https://github.com/fanyuantaier/wechatauto-replica.git@d6e61bea7f9c75906faa8b71d37ef3572fba2454
+flask==3.1.3
+werkzeug==3.1.9
+openai==1.84.0
+psutil>=7,<8
+filelock==4.1.0
+requests>=2.32,<3
+beautifulsoup4>=4.13,<5
+lxml==6.1.3
